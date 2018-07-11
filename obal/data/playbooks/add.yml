@@ -2,53 +2,38 @@
 - hosts: packages
   serial: 1
   gather_facts: no
-
-  roles:
-    - git_annex_setup
   tasks:
-    - name: 'Ensure upstream_files is defined'
-      fail:
-        msg: "'upstream_files' not defined for {{ inventory_hostname }}. Please define within package_manifest.yml"
-      when: upstream_files is not defined
-
-    - name: 'Make package directory'
+    - name: 'Create package directory'
       file:
-        state: 'directory'
-        path: "{{ inventory_dir }}/{{ package_base_dir }}/{{ inventory_hostname }}"
-      register: package_directory_result
+        state: directory
+        path: "{{ inventory_dir }}/packages/{{ inventory_hostname }}"
 
-    - block:
-        - name: 'Fetch sources'
-          include_role:
-            name: fetch_sources
+    - name: 'Fetch gem'
+      command: "gem fetch {{ gem_name }} --version {{ version }}"
+      args:
+        chdir: "{{ inventory_dir }}/packages/{{ inventory_hostname }}"
 
-        - name: 'Git annex add new package'
-          command: "git annex add ./{{ package_base_dir }}/{{ inventory_hostname }}/{{ item }}"
-          with_items: "{{ annex }}"
-          when: annex is defined
-          args:
-            chdir: "{{ inventory_dir }}"
+    - name: 'Run gem2rpm'
+      shell: "gem2rpm -t {{ inventory_dir }}/{{ rubygem_spec_template }} {{ gem_name }}-{{ version }}.gem > {{ inventory_hostname }}.spec"
+      args:
+        chdir: "{{ inventory_dir }}/packages/{{ inventory_hostname }}"
 
-        - name: 'Git add new package'
-          command: "git add ./{{ package_base_dir }}/{{ inventory_hostname }}/*"
-          args:
-            chdir: "{{ inventory_dir }}"
+    - name: 'Git annex add new file(s)'
+      command: "git annex add {{ gem_name }}-{{ version }}.gem"
+      args:
+        chdir: "{{ inventory_dir }}/packages/{{ inventory_hostname }}"
 
-        - name: 'Check if changes in package'
-          command: 'git status -s ./{{ package_base_dir }}/{{ inventory_hostname }}'
-          register: git_status
-          args:
-            chdir: "{{ inventory_dir }}"
+    - name: 'Add new sources'
+      command: "git add packages/{{ inventory_hostname }}/*.spec"
+      args:
+        chdir: "{{ inventory_dir }}"
 
-        - name: 'Git commit new package'
-          command: "git commit ./{{ package_base_dir }}/{{ inventory_hostname }} -m 'Add {{ inventory_hostname }}'"
-          when: git_status.stdout != ''
-          args:
-            chdir: "{{ inventory_dir }}"
+    - name: 'Create git branch'
+      command: "git checkout -b {{ gem_name }}-{{ version }}"
+      args:
+        chdir: "{{ inventory_dir }}"
 
-        - name: 'Git add new package'
-          command: "git add ./{{ package_base_dir }}/{{ inventory_hostname }}/*"
-          when: git_status.stdout != ''
-          args:
-            chdir: "{{ inventory_dir }}"
-      when: package_directory_result is changed
+    - name: 'Create git commit'
+      command: "git commit -a -m 'Add {{ gem_name }} {{ version }}'"
+      args:
+        chdir: "{{ inventory_dir }}"
