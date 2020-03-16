@@ -8,19 +8,12 @@
   roles:
     - package_variables
   tasks:
-    - name: 'legacy nightly building'
-      block:
-        - name: 'set nightly_releaser'
-          set_fact:
-            releasers:
-              - "{{ nightly_releaser }}"
+    - name: 'Check for nightly_sourcefiles and nightly_githash'
+      fail:
+        msg: "nightly_sourcefiles and nightly_githash must be defined"
+      when: nightly_sourcefiles is not defined or nightly_githash is not defined
 
-        - import_role:
-            name: build_package
-      when: nightly_sourcefiles is not defined and nightly_githash is not defined
-
-    - name: 'nightly building'
-      block:
+    - block:
         - name: 'set package_dir'
           set_fact:
             package_dir: "{{ inventory_dir }}/{{ package_base_dir }}/{{ inventory_hostname }}"
@@ -57,7 +50,6 @@
 
         - import_role:
             name: build_package
-      when: nightly_sourcefiles is defined and nightly_githash is defined
       always:
         - name: 'restore spec file'
           copy:

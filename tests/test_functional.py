@@ -16,7 +16,7 @@ TESTREPO_DIR = os.path.join(FIXTURE_DIR, 'testrepo')
 MOCKBIN_DIR = os.path.join(FIXTURE_DIR, 'mockbin')
 MOCK_SOURCES_DIR = os.path.join(FIXTURE_DIR, 'mock_sources')
 
-DEFAULT_ARGS = []
+DEFAULT_ARGS = ['-e', 'srpm_directory="/tmp/SRPMs"']
 if os.environ.get('TRAVIS', None):
     DEFAULT_ARGS.extend(['-e', 'ansible_remote_tmp=/tmp/ansible-remote'])
 
@@ -139,7 +139,7 @@ def test_obal_scratch_upstream_hello():
     assert os.path.exists('packages/hello/hello-2.10.tar.gz')
 
     expected_log = [
-        "tito release --yes --scratch dist-git",
+        "koji build obaltest-nightly-rhel7 SRPMs/hello-2.10-2.src.rpm --scratch",
         "koji watch-task 1234",
         "koji taskinfo -v 1234",
     ]
@@ -153,7 +153,7 @@ def test_obal_scratch_upstream_hello_nowait():
     assert os.path.exists('packages/hello/hello-2.10.tar.gz')
 
     expected_log = [
-        "tito release --yes --scratch dist-git"
+        "koji build obaltest-nightly-rhel7 SRPMs/hello-2.10-1.src.rpm --scratch"
     ]
     assert_mockbin_log(expected_log)
 
@@ -162,11 +162,9 @@ def test_obal_scratch_upstream_hello_nowait():
 def test_obal_release_upstream_hello():
     assert_obal_success(['release', 'hello'])
 
-    assert os.path.exists('packages/hello/hello-2.10.tar.gz')
-
     expected_log = [
         "koji latest-build --quiet obaltest-nightly-rhel7 hello",
-        "tito release --yes dist-git",
+        "koji build --scratch obaltest-nightly-rhel7 SRPMs/hello-2.10-1.src.rpm",
         "koji watch-task 1234",
         "koji taskinfo -v 1234",
         "koji wait-repo --build=hello-2.10-1.el7 --target obaltest-nightly-rhel7"
@@ -175,16 +173,16 @@ def test_obal_release_upstream_hello():
 
 
 @obal_cli_test(repotype='upstream')
-def test_obal_release_upstream_hello_whitelist_check():
-    assert_obal_success(['release', 'hello', '-e', 'build_package_koji_whitelist_check=true'])
+def test_obal_release_upstream_hello_tag_check():
+    assert_obal_success(['release', 'hello', '-e', 'build_package_koji_tag_check=true'])
 
     expected_log_entry = "koji list-pkgs --tag obaltest-nightly-rhel7 --package hello --quiet"
     assert_in_mockbin_log(expected_log_entry)
 
 
 @obal_cli_test(repotype='upstream')
-def test_obal_release_upstream_hello_no_whitelist_check():
-    assert_obal_success(['release', 'hello', '-e', 'build_package_koji_whitelist_check=false'])
+def test_obal_release_upstream_hello_no_tag_check():
+    assert_obal_success(['release', 'hello', '-e', 'build_package_koji_tag_check=false'])
 
     unexpected_log_entry = "koji list-pkgs --tag obaltest-nightly-rhel7 --package hello --quiet"
     assert_not_in_mockbin_log(unexpected_log_entry)
@@ -198,7 +196,7 @@ def test_obal_release_upstream_hello_nowait():
 
     expected_log = [
         "koji latest-build --quiet obaltest-nightly-rhel7 hello",
-        "tito release --yes dist-git",
+        "koji build obaltest-nightly-rhel7 SRPMs/hello-2.10-1.src.rpm"
     ]
     assert_mockbin_log(expected_log)
 
@@ -211,7 +209,7 @@ def test_obal_release_upstream_hello_nowaitrepo():
 
     expected_log = [
         "koji latest-build --quiet obaltest-nightly-rhel7 hello",
-        "tito release --yes dist-git",
+        "koji build obaltest-nightly-rhel7 SRPMs/hello-2.10-1.src.rpm",
         "koji watch-task 1234",
         "koji taskinfo -v 1234",
     ]
@@ -232,16 +230,16 @@ def test_obal_nightly_upstream_hello():
 
 
 @obal_cli_test(repotype='downstream')
-def test_obal_release_downstream_hello_whitelist_check():
-    assert_obal_success(['release', 'hello', '-e', 'build_package_koji_whitelist_check=true'])
+def test_obal_release_downstream_hello_tag_check():
+    assert_obal_success(['release', 'hello', '-e', 'build_package_koji_tag_check=true'])
 
     expected_log_entry = "brew list-pkgs --tag obaltest-dist-git-rhel-7 --package hello --quiet"
     assert_in_mockbin_log(expected_log_entry)
 
 
 @obal_cli_test(repotype='downstream')
-def test_obal_release_downstream_hello_no_whitelist_check():
-    assert_obal_success(['release', 'hello', '-e', 'build_package_koji_whitelist_check=false'])
+def test_obal_release_downstream_hello_no_tag_check():
+    assert_obal_success(['release', 'hello', '-e', 'build_package_koji_tag_check=false'])
 
     unexpected_log_entry = "brew list-pkgs --tag obaltest-dist-git-rhel-7 --package hello --quiet"
     assert_not_in_mockbin_log(unexpected_log_entry)

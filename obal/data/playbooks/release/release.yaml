@@ -4,6 +4,10 @@
   serial: 1
   gather_facts: no
   roles:
-    - diff_package
+    - role: diff_package
+      diff_package_tags: "{{ build_package_tags }}"
+      when: build_package_tags is defined
+    - role: diff_package
+      when: diff_package_tags is defined
     - role: build_package
-      when: diff_package_changed|bool
+      when: diff_package_changed
