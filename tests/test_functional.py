@@ -128,6 +128,7 @@ def test_obal_check_upstream_hello():
 
     expected_log = [
         "koji latest-build --quiet obaltest-nightly-rhel7 hello",
+        "koji latest-build --quiet obaltest-nightly-el8 hello"
     ]
     assert_mockbin_log(expected_log)
 
@@ -166,6 +167,7 @@ def test_obal_release_upstream_hello():
 
     expected_log = [
         "koji latest-build --quiet obaltest-nightly-rhel7 hello",
+        "koji latest-build --quiet obaltest-nightly-el8 hello",
         "tito release --yes dist-git",
         "koji watch-task 1234",
         "koji taskinfo -v 1234",
@@ -198,6 +200,7 @@ def test_obal_release_upstream_hello_nowait():
 
     expected_log = [
         "koji latest-build --quiet obaltest-nightly-rhel7 hello",
+        "koji latest-build --quiet obaltest-nightly-el8 hello",
         "tito release --yes dist-git",
     ]
     assert_mockbin_log(expected_log)
@@ -211,6 +214,7 @@ def test_obal_release_upstream_hello_nowaitrepo():
 
     expected_log = [
         "koji latest-build --quiet obaltest-nightly-rhel7 hello",
+        "koji latest-build --quiet obaltest-nightly-el8 hello",
         "tito release --yes dist-git",
         "koji watch-task 1234",
         "koji taskinfo -v 1234",
@@ -668,5 +672,24 @@ def test_obal_mock():
 
     expected_log = [
         "mock --recurse --chain -r mock/el7.cfg --localrepo {pwd}/mock_builds SRPMs/foo-1.0-1.src.rpm SRPMs/hello-2.10-2.src.rpm"
+    ]
+    assert_mockbin_log(expected_log)
+
+
+@obal_cli_test(repotype='upstream')
+def test_obal_verify_tag():
+    assert_obal_success(['verify-tag', 'obaltest-nightly-rhel7'])
+
+    expected_log = ['koji list-pkgs --quiet --tag obaltest-nightly-rhel7']
+    assert_mockbin_log(expected_log)
+
+
+@obal_cli_test(repotype='upstream')
+def test_obal_verify_tag_all():
+    assert_obal_success(['verify-tag', 'all'])
+
+    expected_log = [
+        'koji list-pkgs --quiet --tag obaltest-nightly-el8',
+        'koji list-pkgs --quiet --tag obaltest-nightly-rhel7'
     ]
     assert_mockbin_log(expected_log)

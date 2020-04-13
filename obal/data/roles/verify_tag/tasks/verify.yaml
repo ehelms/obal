@@ -1,0 +1,23 @@
+---
+- name: Verify tag
+  koji_verify_tag:
+    tag: "{{ tag_name }}"
+    packages: "{{ hostvars }}"
+    directory: "{{ lookup('env', 'PWD') }}"
+    koji_executable: "{{ koji_executable|default('koji') }}"
+  register: missing
+
+- name: "Packages in Koji but not in git for {{ tag_name }}"
+  debug:
+    msg: "{{ missing.missing_in_git }}"
+  when: missing.missing_in_git|length > 0
+
+- name: "Packages missing in koji for {{ tag_name }}"
+  debug:
+    msg: "{{ missing.missing_in_koji }}"
+  when: missing.missing_in_koji|length > 0
+
+- name: "Print packages missing in koji for {{ tag_name }}"
+  debug:
+    msg: "Tag {{ tag_name }} verified"
+  when: missing.missing_in_koji|length == 0 and missing.missing_in_git|length == 0
