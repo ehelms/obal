@@ -1,0 +1,61 @@
+---
+- name: Update package in dist-git
+  block:
+    - name: Create temporary build directory
+      tempfile:
+        state: directory
+        suffix: srpms
+      register: srpm_directory
+      when: build_package_srpm_directory is not defined
+
+    - name: 'Build SRPM'
+      srpm:
+        package: "{{ inventory_dir }}/{{ package_base_dir }}/{{ inventory_hostname }}"
+        output: "{{ build_package_srpm_directory | default(srpm_directory.path) }}"
+        scl: "{{ scl | default(omit) }}"
+        macros: "{{ tag.macros | default(omit) }}"
+        source_location: "{{ source_location | default(omit) }}"
+        source_system: "{{ source_system | default(omit) }}"
+      register: srpm_build
+
+    - name: "Update package in dist-git"
+      dist_git_package:
+        srpm: "{{ srpm_build.path }}"
+        fedpkg_executable: "{{ build_package_fedpkg_command }}"
+
+- name: Tag build if it already exists
+  block:
+    - name: "Package name"
+      rpm_nvr:
+        spec_file: "{{ spec_file_path }}"
+        scl: "{{ tag.scl | default(omit) }}"
+        dist: "{{ tag.dist | default(omit) }}"
+        macros: "{{ tag.macros | default(omit) }}"
+      register: package_nvr
+
+    - name: Check build status
+      check_koji_build:
+        tag: "{{ tag.name }}"
+        nvr: "{{ package_nvr.nvr }}"
+        package: "{{ package_nvr.name }}"
+        koji_executable: "{{ build_package_koji_command }}"
+      register: build_exists
+      when: not build_package_scratch
+
+    - debug:
+        msg: "{{ build_exists }}"
+
+    - name: Tag package build
+      koji_tag_package:
+        tag: "{{ tag.name }}"
+        nvr: "{{ package_nvr.nvr }}"
+        koji_executable: "{{ koji_executable | default('koji') }}"
+      when:
+        - build_exists is not skipped
+        - not build_exists.exists_for_tag
+        - build_exists.exists
+        - not build_package_scratch
+
+- name: Build package for tag
+  when: build_exists is skipped or not build_exists.exists
+  block:
